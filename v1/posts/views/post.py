@@ -5,6 +5,9 @@ from rest_framework.views import APIView
 from v1.filters.posts.post import post_filter
 from v1.posts.models.post import Post
 from v1.posts.serializers.post import PostSerializer, PostSerializerCreate, PostSerializerFull, PostSerializerUpdate
+from v1.utils.permissions import is_moderator
+from v1.utils.admin_logger import log_moderator_action
+
 
 
 # posts
@@ -67,7 +70,14 @@ class PostDetail(APIView):
         """
 
         post = get_object_or_404(Post, pk=post_id)
-        if post.user != request.user:
+        if post.user != request.user and not is_moderator(request.user):
             return Response(status=status.HTTP_401_UNAUTHORIZED)
+
+        if is_moderator(request.user):
+            log_moderator_action(admin_email=request.user.email,
+                                action_type='DELETE',
+                                target_user_email=post.user.email,
+                                content_id=post_id,
+                                )
         post.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
